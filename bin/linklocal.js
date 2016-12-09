@@ -21,23 +21,26 @@ program
   .option('--no-summary', 'Exclude summary i.e. "Listed 22 dependencies"')
   .version(pkg.version)
 
-program.on('--help', function(){
-  console.info('  Examples')
+program.on('--help', function () {
+  console.info('  Examples:')
   console.info('')
-  console.info('    $ linklocal                 # link local deps in current dir')
-  console.info('    $ linklocal link            # link local deps in current dir')
-  console.info('    $ linklocal -r              # link local deps recursively')
-  console.info('    $ linklocal unlink          # unlink only in current dir')
-  console.info('    $ linklocal unlink -r       # unlink recursively')
+  console.info('    linklocal                                           # link local deps in current dir')
+  console.info('    linklocal link                                      # link local deps in current dir')
+  console.info('    linklocal -r                                        # link local deps recursively')
+  console.info('    linklocal unlink                                    # unlink only in current dir')
+  console.info('    linklocal unlink -r                                 # unlink recursively')
   console.info('')
-  console.info('    $ linklocal list            # list all local deps, ignores link status')
-  console.info('    $ linklocal list -r         # list all local deps recursively, ignoring link status')
+  console.info('    linklocal list                                      # list all local deps, ignores link status')
+  console.info('    linklocal list -r                                   # list all local deps recursively, ignoring link status')
   console.info('')
-  console.info('    $ linklocal -- mydir        # link local deps in mydir')
-  console.info('    $ linklocal unlink -- mydir # unlink local deps in mydir')
-
+  console.info('    linklocal -- mydir                                  # link local deps in mydir')
+  console.info('    linklocal unlink -- mydir                           # unlink local deps in mydir')
+  console.info('    linklocal --named pkgname ../to/pkg                 # link local dep by name/path')
+  console.info('    linklocal --named pkgname1 pkgname2 ../to/pkg       # link local deps by name/path')
+  console.info('    linklocal unlink --named pkgname ../to/pkg          # unlink local dep by name/')
+  console.info('    linklocal --named  -r pkgname ../to/pkg             # link local deps recursively by name/')
   console.info('')
-  console.info('  Formats')
+  console.info('  Formats:')
   console.info('')
   console.info('    %s: relative path to symlink')
   console.info('    %S: absolute path to symlink')
@@ -56,11 +59,10 @@ if (program.list) command = 'list'
 program.args[0] = program.args[0] || ''
 
 var named = !!program.named
-var dir = path.resolve(process.cwd(), program.args[0]) || process.cwd() 
-var pkg = path.resolve(dir, 'package.json')
+var dir = path.resolve(process.cwd(), program.args[0]) || process.cwd()
 var recursive = !!program.recursive
 
-fn = linklocal[command]
+var fn = linklocal[command]
 if (recursive) fn = fn.recursive
 if (named) {
   fn = linklocal[command].named
@@ -75,58 +77,54 @@ if (!format) format = program.format
 
 if (program.absolute) format = format.toUpperCase()
 
-if (named) {
-  options = {
-    cwd: program.args[program.args.length - 1],
-    packages: program.args.slice(0, program.args.length - 1),
-    recursive: recursive
-  }
+var options = !named ? {} : {
+  cwd: program.args[program.args.length - 1],
+  packages: program.args.slice(0, program.args.length - 1),
+  recursive: recursive
 }
 
-else options = {};
-
-fn(dir, function(err, items) {
+fn(dir, function (err, items) {
   if (err) throw err
   items = items || []
   var formattedItems = getFormattedItems(items, format)
   .filter(Boolean)
 
   if (program.unique) {
-    formattedItems = formattedItems.filter(function(item, index, arr) {
+    formattedItems = formattedItems.filter(function (item, index, arr) {
       // uniqueness
       return arr.lastIndexOf(item) === index
     })
   }
 
-  formattedItems.forEach(function(str) {
+  formattedItems.forEach(function (str) {
     console.log('%s', str)
   })
 
-  summary(command, program.list ? formattedItems: items)
+  summary(command, program.list ? formattedItems : items)
 }, options)
 
 var formats = {
-  '%S': function(obj) {
+  '%S': function (obj) {
     return obj.from
   },
-  '%H': function(obj) {
+  '%H': function (obj) {
     return obj.to
   },
-  '%s': function(obj) {
+  '%s': function (obj) {
     return path.relative(process.cwd(), obj.from)
   },
-  '%h': function(obj) {
+  '%h': function (obj) {
     return path.relative(process.cwd(), obj.to)
   }
 }
 
-function getFormattedItems(items, format) {
-  return items.map(function(item) {
+function getFormattedItems (items, format) {
+  return items.map(function (item) {
     return formatOut(item, format)
   })
 }
 
-function formatOut(input, format) {
+function formatOut (input, format) {
   var output = format
   for (var key in formats) {
     output = output.replace(new RegExp(key, 'gm'), formats[key](input))
@@ -134,9 +132,9 @@ function formatOut(input, format) {
   return output
 }
 
-function summary(commandName, items) {
+function summary (commandName, items) {
   if (!program['summary']) return
   var length = items.length
-  var commandName = command[0].toUpperCase() + command.slice(1)
-  console.error('\n%sed %d dependenc' + (1 == length ? 'y' : 'ies'), commandName, length)
+  commandName = command[0].toUpperCase() + command.slice(1)
+  console.error('\n%sed %d dependenc' + (length === 1 ? 'y' : 'ies'), commandName, length)
 }
